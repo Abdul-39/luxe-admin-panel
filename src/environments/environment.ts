@@ -1,6 +1,6 @@
 export const environment = {
   production: false,
-  apiUrl: 'https://localhost:57192/api',
+  apiUrl: 'https://mobilemela.runasp.net/api',
   storeName: 'Luxe Mobile Accessories',
   currency: 'Rs.',
   cancellationHours: 24

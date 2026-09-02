@@ -144,7 +144,6 @@ export class ProductService {
       if (filter.minPrice != null) list = list.filter(p => (p.discountPrice ?? p.price) >= filter.minPrice!);
       if (filter.maxPrice != null) list = list.filter(p => (p.discountPrice ?? p.price) <= filter.maxPrice!);
       if (filter.inStockOnly) list = list.filter(p => p.stockQuantity > 0);
-      // Admin lists often need inactive too — only filter active for public when not searching all
       switch (filter.sortBy) {
         case 'price_asc': list.sort((a, b) => (a.discountPrice ?? a.price) - (b.discountPrice ?? b.price)); break;
         case 'price_desc': list.sort((a, b) => (b.discountPrice ?? b.price) - (a.discountPrice ?? a.price)); break;
@@ -197,11 +196,32 @@ export class ProductService {
     return this.http.get<Product[]>(`${environment.apiUrl}/products/${productId}/related`);
   }
 
-  /** Admin: create product (mock persists to localStorage) */
+  /** Admin: create product */
   createProduct(data: Partial<Product> & { mainImageUrl?: string }): Observable<Product> {
     if (!this.useMock) {
-      return this.http.post<any>(`${environment.apiUrl}/products`, data).pipe(map(r => r?.data ?? r));
+      // Backend expects "imageUrls" (array), not "mainImageUrl"
+      const payload: any = {
+        name: data.name,
+        sku: data.sku,
+        brand: data.brand,
+        categoryId: data.categoryId,
+        price: data.price,
+        discountPrice: data.discountPrice ?? null,
+        stockQuantity: data.stockQuantity,
+        lowStockThreshold: data.lowStockThreshold,
+        description: data.description,
+        specifications: data.specifications,
+        colors: data.colors || [],
+        isActive: data.isActive !== false,
+        isFeatured: !!data.isFeatured,
+        imageUrls: data.mainImageUrl ? [data.mainImageUrl] : []
+      };
+
+      return this.http.post<any>(`${environment.apiUrl}/products`, payload)
+        .pipe(map(r => r?.data ?? r));
     }
+
+    // ===== Mock mode =====
     const cat = this.categories.find(c => c.id === data.categoryId);
     const id = Math.max(0, ...this.products.map(p => p.id)) + 1;
     const name = data.name || 'Untitled';
@@ -236,13 +256,34 @@ export class ProductService {
   /** Admin: update product */
   updateProduct(id: number, data: Partial<Product> & { mainImageUrl?: string }): Observable<Product | null> {
     if (!this.useMock) {
-      return this.http.put<any>(`${environment.apiUrl}/products/${id}`, data).pipe(map(r => r?.data ?? r));
+      // Backend expects "imageUrls" (array), not "mainImageUrl"
+      const payload: any = {
+        name: data.name,
+        sku: data.sku,
+        brand: data.brand,
+        categoryId: data.categoryId,
+        price: data.price,
+        discountPrice: data.discountPrice ?? null,
+        stockQuantity: data.stockQuantity,
+        lowStockThreshold: data.lowStockThreshold,
+        description: data.description,
+        specifications: data.specifications,
+        colors: data.colors || [],
+        isActive: data.isActive !== false,
+        isFeatured: !!data.isFeatured,
+        imageUrls: data.mainImageUrl ? [data.mainImageUrl] : []
+      };
+
+      return this.http.put<any>(`${environment.apiUrl}/products/${id}`, payload)
+        .pipe(map(r => r?.data ?? r));
     }
+
+    // ===== Mock mode =====
     const idx = this.products.findIndex(p => p.id === id);
     if (idx < 0) return of(null).pipe(delay(200));
     const existing = this.products[idx];
-    const cat = MOCK_CATEGORIES.find(c => c.id === (data.categoryId ?? existing.categoryId));
-    const imageUrl = data.mainImageUrl || existing.images.find(i => i.isMain)?.imageUrl || '';
+    const cat = this.categories.find(c => c.id === (data.categoryId ?? existing.categoryId));
+    const imageUrl = data.mainImageUrl || existing.images?.find(i => i.isMain)?.imageUrl || '';
     const updated: Product = {
       ...existing,
       name: data.name ?? existing.name,

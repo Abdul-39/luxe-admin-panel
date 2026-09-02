@@ -1,4 +1,3 @@
-
 import { Component, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import {
@@ -264,13 +263,8 @@ export class AdminLoginComponent {
           'Welcome, Admin'
         );
 
-        /*
-         * IMPORTANT:
-         *
-         * Change '/admin' below if your actual
-         * admin dashboard uses another route.
-         */
-        this.router.navigate(['/admin']);
+        // FIXED: redirect to root (admin dashboard)
+        this.router.navigate(['/']);
       },
 
       error: (err) => {

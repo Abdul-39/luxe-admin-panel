@@ -122,14 +122,14 @@ import { AuthService } from '../../../core/services/auth.service';
 
         <div class="sidebar-footer">
 
-          <a
-            href="http://localhost:4200"
-            target="_blank"
-            rel="noopener"
-            class="view-store"
-          >
-            ← View Customer Store
-          </a>
+       <a
+  href="http://localhost:4200"
+  target="_blank"
+  rel="noopener"
+  class="view-store"
+>
+  ← View Customer Store
+</a>
 
           <button
             type="button"

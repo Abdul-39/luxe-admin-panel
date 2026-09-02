@@ -2,7 +2,7 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { DecimalPipe, DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 
-import { OrderService } from '../../../core/services/order.service';
+import { AdminService } from '../../../core/services/admin.service';
 import { Order } from '../../../core/models';
 
 @Component({
@@ -17,6 +17,7 @@ import { Order } from '../../../core/models';
     <main class="page-enter">
       <div class="container">
 
+        <!-- Breadcrumb -->
         <nav class="breadcrumb">
           <a routerLink="/">Home</a>
           <span>/</span>
@@ -25,6 +26,7 @@ import { Order } from '../../../core/models';
           <span>Orders</span>
         </nav>
 
+        <!-- Page Header -->
         <div class="page-header">
           <div>
             <h1>Orders</h1>
@@ -36,6 +38,7 @@ import { Order } from '../../../core/models';
           </div>
         </div>
 
+        <!-- Loading -->
         @if (loading()) {
 
           <div class="loading card">
@@ -43,7 +46,10 @@ import { Order } from '../../../core/models';
             <p>Loading orders...</p>
           </div>
 
-        } @else if (orders().length === 0) {
+        }
+
+        <!-- No Orders -->
+        @else if (orders().length === 0) {
 
           <div class="empty-state card">
 
@@ -57,7 +63,10 @@ import { Order } from '../../../core/models';
 
           </div>
 
-        } @else {
+        }
+
+        <!-- Orders -->
+        @else {
 
           <div class="orders-list">
 
@@ -65,9 +74,11 @@ import { Order } from '../../../core/models';
 
               <article class="order-card card">
 
+                <!-- Order Header -->
                 <div class="order-header">
 
                   <div>
+
                     <p class="order-number">
                       Order #{{ order.orderNumber }}
                     </p>
@@ -75,6 +86,7 @@ import { Order } from '../../../core/models';
                     <p class="order-date">
                       {{ order.orderDate | date:'dd MMM yyyy, HH:mm' }}
                     </p>
+
                   </div>
 
                   <span
@@ -87,45 +99,59 @@ import { Order } from '../../../core/models';
 
                 </div>
 
+                <!-- Order Body -->
                 <div class="order-body">
 
                   <div class="order-info">
 
+                    <!-- Customer -->
                     <div class="info-item">
+
                       <span class="label">
                         Customer
                       </span>
 
                       <span class="value">
-                        {{ order.customerName }}
+                        {{ order.customerName || 'Guest Customer' }}
                       </span>
+
                     </div>
 
+                    <!-- Phone -->
                     <div class="info-item">
+
                       <span class="label">
                         Phone
                       </span>
 
                       <span class="value">
-                        {{ order.phone }}
+                        {{ order.phone || 'N/A' }}
                       </span>
+
                     </div>
 
+                    <!-- Payment -->
                     <div class="info-item">
+
                       <span class="label">
                         Payment
                       </span>
 
                       <span class="value">
+
                         {{
                           order.paymentMethod === 'CashOnDelivery'
                             ? 'Cash on Delivery'
-                            : order.paymentMethod
+                            : order.paymentMethod || 'N/A'
                         }}
+
                       </span>
+
                     </div>
 
+                    <!-- Payment Status -->
                     <div class="info-item">
+
                       <span class="label">
                         Payment Status
                       </span>
@@ -134,13 +160,15 @@ import { Order } from '../../../core/models';
                         class="payment-status"
                         [attr.data-status]="order.paymentStatus">
 
-                        {{ order.paymentStatus }}
+                        {{ order.paymentStatus || 'Pending' }}
 
                       </span>
+
                     </div>
 
                   </div>
 
+                  <!-- Total -->
                   <div class="order-total">
 
                     <span class="total-label">
@@ -155,19 +183,25 @@ import { Order } from '../../../core/models';
 
                 </div>
 
+                <!-- Order Footer -->
                 <div class="order-footer">
 
                   <span class="delivery-text">
+
                     Status:
+
                     <strong>
                       {{ order.orderStatus }}
                     </strong>
+
                   </span>
 
                   <a
                     [routerLink]="['/orders', order.id]"
                     class="btn btn-outline btn-sm">
+
                     View Order
+
                   </a>
 
                 </div>
@@ -184,8 +218,9 @@ import { Order } from '../../../core/models';
     </main>
   `,
 
-  styles: [`
+  styles: [
 
+    `
     .breadcrumb {
       font-size: 0.85rem;
       color: var(--color-text-muted);
@@ -316,6 +351,7 @@ import { Order } from '../../../core/models';
       display: flex;
       flex-direction: column;
       gap: 0.25rem;
+      min-width: 0;
     }
 
     .label {
@@ -328,6 +364,7 @@ import { Order } from '../../../core/models';
     .value {
       font-size: 0.9rem;
       font-weight: 500;
+      overflow-wrap: anywhere;
     }
 
     .payment-status {
@@ -463,12 +500,15 @@ import { Order } from '../../../core/models';
       }
 
     }
+    `
 
-  `]
+  ]
 })
 export class AdminOrdersListComponent implements OnInit {
 
-  private orderService = inject(OrderService);
+  // IMPORTANT:
+  // Admin orders must use AdminService, not OrderService.
+  private adminService = inject(AdminService);
 
   orders = signal<Order[]>([]);
   loading = signal(true);
@@ -481,18 +521,34 @@ export class AdminOrdersListComponent implements OnInit {
 
     this.loading.set(true);
 
-    this.orderService.getMyOrders().subscribe({
+    this.adminService.getOrders().subscribe({
+
       next: (orders: Order[]) => {
+
+        console.log(
+          'Admin orders loaded:',
+          orders
+        );
+
         this.orders.set(orders);
         this.loading.set(false);
+
       },
 
       error: (error: unknown) => {
-        console.error('Failed to load orders:', error);
+
+        console.error(
+          'Failed to load admin orders:',
+          error
+        );
+
         this.orders.set([]);
         this.loading.set(false);
+
       }
+
     });
 
   }
+
 }

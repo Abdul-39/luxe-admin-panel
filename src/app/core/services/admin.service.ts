@@ -27,6 +27,16 @@ export interface AdminOrder extends Order {
   // already has everything needed
 }
 
+export interface AdminCustomer {
+  id?: number | null;
+  name: string;
+  email: string;
+  phone: string;
+  orders: number;
+  spent: number;
+  joined: string;
+}
+
 interface ApiEnvelope<T> {
   success: boolean;
   message: string;
@@ -228,16 +238,21 @@ export class AdminService {
             ? Math.round(totalSales / nonCancelled.length)
             : 0;
 
+        // Derive real customer count from orders (unique by email/name)
+        const uniqueCustomers = new Set(
+          list
+            .map(o => (o.email || o.customerName || '').trim().toLowerCase())
+            .filter(Boolean)
+        );
+
         return {
           totalSales,
           totalOrders: list.length,
           pendingOrders: pending.length,
           deliveredOrders: delivered.length,
 
-          // These two remain as your current dashboard values
-          // until customer/product admin endpoints are connected.
-          totalCustomers: 48,
-          totalProducts: 86,
+          totalCustomers: uniqueCustomers.size,
+          totalProducts: 86, // still hardcoded until products admin count is wired
 
           lowStockProducts: 5,
 
@@ -421,6 +436,146 @@ export class AdminService {
         revenue: 179136
       }
     ]);
+  }
+
+  // ============================================================
+  // CUSTOMERS
+  // ============================================================
+
+  /**
+   * Get registered / known customers.
+   * Tries dedicated admin customers endpoint first; falls back to unique
+   * customers derived from real orders (customerName + email + phone).
+   * Count and list will match whatever is actually in the SQL Server DB
+   * via the orders (or customers) API.
+   */
+  getCustomers(): Observable<AdminCustomer[]> {
+    // Prefer the real /api/admin/customers endpoint (registered users from DB)
+    return this.http
+      .get<ApiEnvelope<AdminCustomer[]> | AdminCustomer[] | any[]>(
+        `${environment.apiUrl}/admin/customers`
+      )
+      .pipe(
+        map(res => this.unwrapCustomerList(res)),
+        catchError(() => {
+          // Fallback only when the endpoint is missing / fails: derive from orders
+          return this.getOrders().pipe(
+            map(orders => this.deriveCustomersFromOrders(orders))
+          );
+        })
+      );
+  }
+
+  private unwrapCustomerList(
+    res: ApiEnvelope<AdminCustomer[]> | AdminCustomer[] | any
+  ): AdminCustomer[] {
+    let raw: any[] = [];
+    if (res && typeof res === 'object' && 'data' in res && Array.isArray((res as any).data)) {
+      raw = (res as any).data;
+    } else if (Array.isArray(res)) {
+      raw = res;
+    }
+
+    // Normalize backend AdminCustomerDto → frontend AdminCustomer shape
+    return raw.map((c: any) => ({
+      id: c.id ?? c.Id ?? null,
+      name: c.name ?? c.Name ?? 'Unknown',
+      email: c.email ?? c.Email ?? '',
+      phone: c.phone ?? c.Phone ?? '',
+      orders: Number(c.orders ?? c.Orders ?? 0),
+      spent: Number(c.spent ?? c.Spent ?? 0),
+      joined: c.joined ?? c.createdAt ?? c.CreatedAt ?? new Date().toISOString()
+    }));
+  }
+
+  private deriveCustomersFromOrders(orders: Order[]): AdminCustomer[] {
+    const map = new Map<string, AdminCustomer>();
+
+    for (const o of orders) {
+      const key = (o.email || o.customerName || '').trim().toLowerCase();
+      if (!key) continue;
+
+      const existing = map.get(key);
+      const orderDate = o.orderDate || new Date().toISOString();
+      const total = Number(o.total || 0);
+
+      if (existing) {
+        existing.orders += 1;
+        existing.spent += total;
+        // Keep earliest joined date
+        if (new Date(orderDate) < new Date(existing.joined)) {
+          existing.joined = orderDate;
+        }
+      } else {
+        map.set(key, {
+          id: o.customerId ?? null,
+          name: o.customerName || 'Unknown',
+          email: o.email || '',
+          phone: o.phone || '',
+          orders: 1,
+          spent: total,
+          joined: orderDate
+        });
+      }
+    }
+
+    return Array.from(map.values()).sort(
+      (a, b) => new Date(b.joined).getTime() - new Date(a.joined).getTime()
+    );
+  }
+
+  // ============================================================
+  // REVIEWS
+  // ============================================================
+
+  /**
+   * Get all product reviews for admin moderation.
+   * Tries /api/reviews and /api/admin/reviews.
+   */
+  getReviews(): Observable<any[]> {
+    return this.http
+      .get<ApiEnvelope<any[]> | any[]>(`${environment.apiUrl}/reviews`)
+      .pipe(
+        map(res => {
+          if (res && typeof res === 'object' && 'data' in res && Array.isArray((res as any).data)) {
+            return (res as any).data;
+          }
+          if (Array.isArray(res)) return res;
+          return [];
+        }),
+        catchError(() =>
+          this.http
+            .get<ApiEnvelope<any[]> | any[]>(`${environment.apiUrl}/admin/reviews`)
+            .pipe(
+              map(res => {
+                if (res && typeof res === 'object' && 'data' in res && Array.isArray((res as any).data)) {
+                  return (res as any).data;
+                }
+                if (Array.isArray(res)) return res;
+                return [];
+              }),
+              catchError(() => of([]))
+            )
+        )
+      );
+  }
+
+  updateReviewStatus(id: number, approved: boolean): Observable<boolean> {
+    return this.http
+      .patch(`${environment.apiUrl}/reviews/${id}`, { approved })
+      .pipe(
+        map(() => true),
+        catchError(() => of(false))
+      );
+  }
+
+  deleteReview(id: number): Observable<boolean> {
+    return this.http
+      .delete(`${environment.apiUrl}/reviews/${id}`)
+      .pipe(
+        map(() => true),
+        catchError(() => of(false))
+      );
   }
 
   // ============================================================

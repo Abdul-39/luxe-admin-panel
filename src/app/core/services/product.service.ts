@@ -214,6 +214,7 @@ export class ProductService {
         colors: data.colors || [],
         isActive: data.isActive !== false,
         isFeatured: !!data.isFeatured,
+        isSignature: !!(data as any).isSignature,
         imageUrls: data.mainImageUrl ? [data.mainImageUrl] : []
       };
 
@@ -271,6 +272,7 @@ export class ProductService {
         colors: data.colors || [],
         isActive: data.isActive !== false,
         isFeatured: !!data.isFeatured,
+        isSignature: !!(data as any).isSignature,
         imageUrls: data.mainImageUrl ? [data.mainImageUrl] : []
       };
 

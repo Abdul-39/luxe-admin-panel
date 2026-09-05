@@ -123,7 +123,11 @@ import { Category } from '../../../core/models';
             </label>
             <label class="check-row">
               <input type="checkbox" formControlName="isFeatured" />
-              <span>Featured product</span>
+              <span>Featured product (shows in Featured section on home)</span>
+            </label>
+            <label class="check-row">
+              <input type="checkbox" formControlName="isSignature" />
+              <span>Signature product (shows in home slider)</span>
             </label>
 
             <div class="form-actions">
@@ -211,7 +215,8 @@ export class AdminProductFormComponent implements OnInit {
     colors: [''],
     mainImageUrl: [''],
     isActive: [true],
-    isFeatured: [false]
+    isFeatured: [false],
+    isSignature: [false]
   });
 
   ngOnInit(): void {
@@ -238,7 +243,8 @@ export class AdminProductFormComponent implements OnInit {
               colors: p.colors?.join(', ') || '',
               mainImageUrl: p.images.find(i => i.isMain)?.imageUrl || '',
               isActive: p.isActive,
-              isFeatured: p.isFeatured
+              isFeatured: p.isFeatured,
+              isSignature: !!(p as any).isSignature
             });
           }
         });
@@ -300,7 +306,8 @@ export class AdminProductFormComponent implements OnInit {
       colors,
       mainImageUrl: v.mainImageUrl || this.previewUrl(),
       isActive: v.isActive,
-      isFeatured: v.isFeatured
+      isFeatured: v.isFeatured,
+      isSignature: v.isSignature
     };
 
     const req$ = this.isEdit() && this.productId
